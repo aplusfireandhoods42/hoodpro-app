@@ -8,7 +8,7 @@ const db = require('./db');
 const { hashPassword, verifyPassword, randomToken } = require('./lib/auth');
 const { getSession, createSession, destroySession } = require('./lib/session');
 const { parseMultipart } = require('./lib/multipart');
-const { staffLayout, portalLayout, money, fmtDate } = require('./lib/layout');
+const { staffLayout, portalLayout, authLayout, money, fmtDate } = require('./lib/layout');
 const notify = require('./lib/notify');
 const quickbooks = require('./lib/quickbooks');
 
@@ -299,7 +299,7 @@ async function handle(req, res) {
 
   // ---- Public: login ----
   if (pathname === '/login' && method === 'GET') {
-    return send(res, 200, staffViews.loginPage({ error: parsedUrl.searchParams.get('error') }));
+    return send(res, 200, authLayout({ title: 'Log In', body: staffViews.loginPage({ error: parsedUrl.searchParams.get('error') }) }));
   }
   if (pathname === '/login' && method === 'POST') {
     const { fields } = await parseBody(req);
