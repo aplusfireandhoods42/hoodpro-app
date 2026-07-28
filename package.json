@@ -1,0 +1,11 @@
+{
+  "name": "hoodpro-app",
+  "version": "1.0.0",
+  "description": "Kitchen exhaust & hood cleaning field service app - recurring scheduling, photos, reports, invoicing, customer portal, payments",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": { "node": ">=22.5.0" },
+  "license": "UNLICENSED"
+}
