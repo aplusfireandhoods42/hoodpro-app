@@ -132,6 +132,35 @@ CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT
 );
+
+CREATE TABLE IF NOT EXISTS proposals (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  customer_id INTEGER REFERENCES customers(id),
+  business_name TEXT NOT NULL,
+  contact_name TEXT,
+  contact_phone TEXT,
+  contact_email TEXT,
+  site_address TEXT,
+  building_stories INTEGER,
+  hood_count INTEGER,
+  hood_length_ft REAL,
+  filter_count INTEGER,
+  access_panel_count INTEGER,
+  duct_vertical_length_ft REAL,
+  duct_horizontal_length_ft REAL,
+  fan_type TEXT,
+  fan_notes TEXT,
+  water_access TEXT,
+  water_access_notes TEXT,
+  security_access_notes TEXT,
+  alarm_code TEXT,
+  key_access_type TEXT,
+  key_access_notes TEXT,
+  notes TEXT,
+  status TEXT NOT NULL DEFAULT 'draft', -- draft, sent, won, lost
+  created_by INTEGER REFERENCES users(id),
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 `);
 
 // ---- lightweight migrations: add columns to tables that already existed before this feature ----

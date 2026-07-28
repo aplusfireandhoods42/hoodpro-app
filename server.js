@@ -18,6 +18,7 @@ const invoiceViews = require('./views/invoices');
 const crewViews = require('./views/crews');
 const settingsViews = require('./views/settings');
 const portalViews = require('./views/portal');
+const proposalViews = require('./views/proposals');
 
 const PORT = process.env.PORT || 3000;
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
@@ -37,6 +38,12 @@ function readBody(req) {
     req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
+}
+
+function numOrNull(v) {
+  if (v === undefined || v === null || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
 }
 
 function parseQuerystring(str) {
@@ -427,6 +434,72 @@ async function handleStaff(req, res, pathname, method, parsedUrl, user) {
     db.prepare('INSERT INTO jobs (agreement_id, customer_id, location_id, scheduled_date, status) VALUES (?,?,?,?,?)')
       .run(agreement.id, m[1], fields.location_id, fields.next_due_date, 'scheduled');
     return redirect(res, `/customers/${m[1]}?success=` + encodeURIComponent('Recurring agreement created and first job scheduled'));
+  }
+
+  // Proposals
+  if (pathname === '/proposals' && method === 'GET') {
+    const proposals = db.prepare('SELECT * FROM proposals ORDER BY created_at DESC').all();
+    return page('Proposals', 'Proposals', proposalViews.proposalsList({ proposals }));
+  }
+  if (pathname === '/proposals/new' && method === 'GET') {
+    const customers = db.prepare('SELECT * FROM customers ORDER BY business_name ASC').all();
+    return page('New Proposal', 'Proposals', proposalViews.proposalNew({ customers, error: parsedUrl.searchParams.get('error') }));
+  }
+  if (pathname === '/proposals' && method === 'POST') {
+    const { fields } = await parseBody(req);
+    if (!fields.business_name) return redirect(res, '/proposals/new?error=' + encodeURIComponent('Business name is required'));
+    const info = db.prepare(`INSERT INTO proposals (
+      customer_id, business_name, contact_name, contact_phone, contact_email, site_address, building_stories,
+      hood_count, hood_length_ft, filter_count, access_panel_count, duct_vertical_length_ft, duct_horizontal_length_ft,
+      fan_type, fan_notes, water_access, water_access_notes, security_access_notes, alarm_code,
+      key_access_type, key_access_notes, notes, status, created_by
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+      fields.customer_id || null, fields.business_name, fields.contact_name || null, fields.contact_phone || null,
+      fields.contact_email || null, fields.site_address || null, numOrNull(fields.building_stories),
+      numOrNull(fields.hood_count), numOrNull(fields.hood_length_ft), numOrNull(fields.filter_count),
+      numOrNull(fields.access_panel_count), numOrNull(fields.duct_vertical_length_ft), numOrNull(fields.duct_horizontal_length_ft),
+      fields.fan_type || null, fields.fan_notes || null, fields.water_access || null, fields.water_access_notes || null,
+      fields.security_access_notes || null, fields.alarm_code || null, fields.key_access_type || null,
+      fields.key_access_notes || null, fields.notes || null, 'draft', user.id
+    );
+    return redirect(res, `/proposals/${info.lastInsertRowid}?success=` + encodeURIComponent('Proposal created'));
+  }
+  if ((m = pathname.match(/^\/proposals\/(\d+)$/)) && method === 'GET') {
+    const proposal = db.prepare('SELECT * FROM proposals WHERE id = ?').get(m[1]);
+    if (!proposal) return notFound(res);
+    const customerLink = proposal.customer_id ? `/customers/${proposal.customer_id}` : null;
+    return page(proposal.business_name, 'Proposals', proposalViews.proposalDetail({ proposal, customerLink }));
+  }
+  if ((m = pathname.match(/^\/proposals\/(\d+)\/edit$/)) && method === 'GET') {
+    const proposal = db.prepare('SELECT * FROM proposals WHERE id = ?').get(m[1]);
+    if (!proposal) return notFound(res);
+    const customers = db.prepare('SELECT * FROM customers ORDER BY business_name ASC').all();
+    return page('Edit Proposal', 'Proposals', proposalViews.proposalEdit({ proposal, customers, error: parsedUrl.searchParams.get('error') }));
+  }
+  if ((m = pathname.match(/^\/proposals\/(\d+)$/)) && method === 'POST') {
+    const { fields } = await parseBody(req);
+    if (!fields.business_name) return redirect(res, `/proposals/${m[1]}/edit?error=` + encodeURIComponent('Business name is required'));
+    db.prepare(`UPDATE proposals SET
+      customer_id=?, business_name=?, contact_name=?, contact_phone=?, contact_email=?, site_address=?, building_stories=?,
+      hood_count=?, hood_length_ft=?, filter_count=?, access_panel_count=?, duct_vertical_length_ft=?, duct_horizontal_length_ft=?,
+      fan_type=?, fan_notes=?, water_access=?, water_access_notes=?, security_access_notes=?, alarm_code=?,
+      key_access_type=?, key_access_notes=?, notes=?
+      WHERE id=?`).run(
+      fields.customer_id || null, fields.business_name, fields.contact_name || null, fields.contact_phone || null,
+      fields.contact_email || null, fields.site_address || null, numOrNull(fields.building_stories),
+      numOrNull(fields.hood_count), numOrNull(fields.hood_length_ft), numOrNull(fields.filter_count),
+      numOrNull(fields.access_panel_count), numOrNull(fields.duct_vertical_length_ft), numOrNull(fields.duct_horizontal_length_ft),
+      fields.fan_type || null, fields.fan_notes || null, fields.water_access || null, fields.water_access_notes || null,
+      fields.security_access_notes || null, fields.alarm_code || null, fields.key_access_type || null,
+      fields.key_access_notes || null, fields.notes || null, m[1]
+    );
+    return redirect(res, `/proposals/${m[1]}?success=` + encodeURIComponent('Proposal updated'));
+  }
+  if ((m = pathname.match(/^\/proposals\/(\d+)\/status$/)) && method === 'POST') {
+    const { fields } = await parseBody(req);
+    const status = ['draft', 'sent', 'won', 'lost'].includes(fields.status) ? fields.status : 'draft';
+    db.prepare('UPDATE proposals SET status = ? WHERE id = ?').run(status, m[1]);
+    return redirect(res, `/proposals/${m[1]}?success=` + encodeURIComponent('Status updated'));
   }
 
   // Jobs
