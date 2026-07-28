@@ -56,6 +56,8 @@ textarea { min-height: 80px; }
 .badge.in_progress { background: #fdf1d9; color: var(--warn); }
 .badge.completed { background: #e2f5e9; color: var(--good); }
 .badge.canceled { background: #f6e5e2; color: var(--bad); }
+.badge.won { background: #e2f5e9; color: var(--good); }
+.badge.lost { background: #f6e5e2; color: var(--bad); }
 .badge.draft { background: #eee; color: var(--muted); }
 .badge.sent { background: #e3edf7; color: var(--navy); }
 .badge.paid { background: #e2f5e9; color: var(--good); }
